@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { X, Save, Pin, Type, Plus, Minus, Palette, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-type NoteColor = "yellow" | "pink" | "blue" | "green" | "purple";
+type NoteColor = "yellow" | "pink" | "blue" | "green" | "purple" | "orange";
 
 const NOTE_COLORS: Record<NoteColor, { bg: string; border: string; shadow: string }> = {
   yellow: {
@@ -43,6 +43,11 @@ const NOTE_COLORS: Record<NoteColor, { bg: string; border: string; shadow: strin
     border: "hsl(var(--note-purple-border))",
     shadow: "hsl(var(--note-purple-shadow))",
   },
+  orange: {
+    bg: "hsl(var(--note-orange))",
+    border: "hsl(var(--note-orange-border))",
+    shadow: "hsl(var(--note-orange-shadow))",
+  },
 };
 
 const FONTS = [
@@ -65,6 +70,8 @@ export const NoteOverlay = ({ onClose }: NoteOverlayProps) => {
   const [title, setTitle] = useState("Note title here");
   const [content, setContent] = useState("Start typing your note here...");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
 
   const currentColors = NOTE_COLORS[noteColor];
   const currentFont = FONTS.find((f) => f.value === selectedFont)?.family || FONTS[0].family;
@@ -84,14 +91,6 @@ export const NoteOverlay = ({ onClose }: NoteOverlayProps) => {
     toast.info(`Font size: ${fontSize - 2}px`);
   };
 
-  const increaseNoteSize = () => {
-    setNoteWidth((prev) => Math.min(prev + 50, 800));
-  };
-
-  const decreaseNoteSize = () => {
-    setNoteWidth((prev) => Math.max(prev - 50, 400));
-  };
-
   const handleAttachImage = () => {
     fileInputRef.current?.click();
   };
@@ -103,10 +102,39 @@ export const NoteOverlay = ({ onClose }: NoteOverlayProps) => {
     }
   };
 
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    setIsResizing(true);
+    e.preventDefault();
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback(
+    (e: MouseEvent) => {
+      if (isResizing && noteRef.current) {
+        const newWidth = e.clientX - noteRef.current.getBoundingClientRect().left;
+        setNoteWidth(Math.max(400, Math.min(newWidth, 800))); // Constrain width
+      }
+    },
+    [isResizing],
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className="flex rounded-[20px_8px_20px_8px] shadow-2xl transition-all duration-300 ease-out animate-in zoom-in-95"
+        ref={noteRef}
+        className="flex rounded-[20px_8px_20px_8px] shadow-2xl transition-all duration-300 ease-out animate-in zoom-in-95 relative"
         style={{
           width: `${noteWidth}px`,
           maxWidth: "90vw",
@@ -130,7 +158,7 @@ export const NoteOverlay = ({ onClose }: NoteOverlayProps) => {
             onClick={handleAttachImage}
             title="Attach Image/Diagram"
           >
-            <Pin className="h-4 w-4" />
+            <ImagePlus className="h-4 w-4" />
           </Button>
 
           <Select value={selectedFont} onValueChange={setSelectedFont}>
@@ -164,36 +192,6 @@ export const NoteOverlay = ({ onClose }: NoteOverlayProps) => {
             title="Decrease Font Size"
           >
             <Minus className="h-4 w-4" />
-          </Button>
-
-          <div className="my-1 h-px w-6 bg-[hsl(var(--toolbar-text))]/20" />
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 hover:bg-[hsl(var(--toolbar-hover))] text-[hsl(var(--toolbar-text))] transition-all duration-200"
-            onClick={increaseNoteSize}
-            title="Increase Note Width"
-          >
-            <div className="flex items-center gap-0.5">
-              <div className="h-3 w-0.5 bg-current" />
-              <Plus className="h-3 w-3" />
-              <div className="h-3 w-0.5 bg-current" />
-            </div>
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 hover:bg-[hsl(var(--toolbar-hover))] text-[hsl(var(--toolbar-text))] transition-all duration-200"
-            onClick={decreaseNoteSize}
-            title="Decrease Note Width"
-          >
-            <div className="flex items-center gap-0.5">
-              <div className="h-3 w-0.5 bg-current" />
-              <Minus className="h-3 w-3" />
-              <div className="h-3 w-0.5 bg-current" />
-            </div>
           </Button>
 
           <div className="my-1 h-px w-6 bg-[hsl(var(--toolbar-text))]/20" />
@@ -276,6 +274,14 @@ export const NoteOverlay = ({ onClose }: NoteOverlayProps) => {
               Save Note
             </Button>
           </div>
+        </div>
+
+        {/* Resizer Handle */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center group"
+          onMouseDown={startResizing}
+        >
+          <div className="w-1 h-10 bg-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
 

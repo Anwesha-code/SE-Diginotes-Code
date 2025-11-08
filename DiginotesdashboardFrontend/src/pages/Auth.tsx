@@ -7,31 +7,74 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StickyNote, Sparkles, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase"; // Import Supabase client
 
 const Auth = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // TODO: Implement login logic
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Login successful!");
+        navigate("/dashboard");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("An unexpected error occurred during login.");
+    } finally {
       setIsLoading(false);
-      toast.success("Login successful!");
-      navigate("/dashboard");
-    }, 1000);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // TODO: Implement signup logic
-    setTimeout(() => {
+    if (signupPassword !== signupConfirmPassword) {
+      toast.error("Passwords do not match.");
       setIsLoading(false);
-      toast.success("Account created successfully!");
-      navigate("/dashboard");
-    }, 1000);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: signupEmail,
+        password: signupPassword,
+        options: {
+          data: {
+            full_name: signupName, // Store full name in user metadata
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Account created successfully! Please check your email to confirm your account.");
+        // Optionally redirect to login or a confirmation page
+        // navigate("/auth");
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      toast.error("An unexpected error occurred during signup.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -115,6 +158,8 @@ const Auth = () => {
                       placeholder="you@example.com"
                       required
                       className="h-11"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -125,6 +170,8 @@ const Auth = () => {
                       placeholder="••••••••"
                       required
                       className="h-11"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
                     />
                   </div>
                   <Button
@@ -150,6 +197,8 @@ const Auth = () => {
                       placeholder="John Doe"
                       required
                       className="h-11"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -160,6 +209,8 @@ const Auth = () => {
                       placeholder="you@example.com"
                       required
                       className="h-11"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -170,6 +221,8 @@ const Auth = () => {
                       placeholder="••••••••"
                       required
                       className="h-11"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -180,6 +233,8 @@ const Auth = () => {
                       placeholder="••••••••"
                       required
                       className="h-11"
+                      value={signupConfirmPassword}
+                      onChange={(e) => setSignupConfirmPassword(e.target.value)}
                     />
                   </div>
                   <Button

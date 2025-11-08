@@ -1,15 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Grid3x3, List, StickyNote, Folder, Star, Settings, LogOut } from "lucide-react";
 import { NoteCard } from "@/components/NoteCard";
 import { FolderCard } from "@/components/FolderCard";
+import { supabase } from "@/lib/supabase"; // Import Supabase client
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Mock data
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+      }
+    };
+    checkUser();
+
+    // Listen for auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Logout failed: " + error.message);
+    } else {
+      toast.success("Logged out successfully!");
+      navigate("/auth");
+    }
+  };
+
+  // Mock data (will be replaced with Supabase fetches later)
   const notes = [
     { id: "1", title: "Meeting Notes", content: "Discuss Q4 objectives...", color: "yellow", isPinned: true, isFavorite: false },
     { id: "2", title: "Ideas", content: "New feature concepts", color: "pink", isPinned: false, isFavorite: true },
@@ -42,7 +77,7 @@ const Dashboard = () => {
               <Button variant="outline" size="icon" className="rounded-full">
                 <Settings className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={handleLogout}>
                 <LogOut className="w-5 h-5" />
               </Button>
             </div>
@@ -79,7 +114,7 @@ const Dashboard = () => {
             >
               <List className="w-5 h-5" />
             </Button>
-            <Button className="h-12 px-6 gap-2 font-semibold" onClick={() => window.location.href = '/new-note'}>
+            <Button className="h-12 px-6 gap-2 font-semibold" onClick={() => navigate('/new-note')}>
               <Plus className="w-5 h-5" />
               New Note
             </Button>
@@ -93,7 +128,7 @@ const Dashboard = () => {
               <Folder className="w-6 h-6 text-secondary" />
               Folders
             </h2>
-            <Button variant="ghost" className="gap-2" onClick={() => window.location.href = '/new-folder'}>
+            <Button variant="ghost" className="gap-2" onClick={() => navigate('/new-folder')}>
               <Plus className="w-4 h-4" />
               New Folder
             </Button>
